@@ -1,0 +1,19 @@
+# Dependencies
+node_modules
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Build output
+dist
+src/styles/output.css
+
+# OS files
+.DS_Store
+
+# IDE files
+.vscode
+*.code-workspace
