@@ -4,7 +4,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 // Replace with your actual Supabase credentials
 const SUPABASE_URL = 'https://nauwlyivjdzbuqarrxmf.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdXdseWl2amR6YnVxYXJyeG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2NjI2OTUsImV4cCI6MjA1NDIzODY5NX0.YxqnVIauv2LWUIEWtBi7lSluUqTy6P2BwereAYNHgF8';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let locationChart, deviceChart, trendChart;
@@ -29,23 +29,23 @@ document.getElementById('trackButton').addEventListener('click', async () => {
     const shortUrl = shortUrlInput.value.trim();
     if (!shortUrl) throw new Error('Please enter a URL');
 
-    // 2. Extract the alias from the last path segment
+    // 2. Extract the alias from the URL (last segment)
     const alias = shortUrl.split('/').pop();
 
-    // 3. Look up which table & record belongs to that alias
-    const { recordId, urlType } = await findUrlRecord(alias);
+    // 3. Look up the URL record in main_urls
+    const { recordId } = await findUrlRecord(alias);
     if (!recordId) throw new Error('URL not found');
 
-    // 4. Fetch click-event data from Supabase
-    const clicksData = await fetchClickData(recordId, urlType);
+    // 4. Fetch click-event data for this URL
+    const clicksData = await fetchClickData(recordId);
 
-    // 5. Update summary (total clicks, unique clicks, average interval, etc.)
+    // 5. Update summary (total clicks, unique clicks, average interval)
     updateSummary(clicksData);
 
-    // 6. Render charts (using Chart.js) for location, device, and trend
+    // 6. Render or update Chart.js charts
     await renderCharts(clicksData);
 
-    // Reveal the summary & chart sections if hidden
+    // Reveal summary and chart sections if hidden
     document.getElementById('summary').classList.remove('hidden');
     document.getElementById('charts').classList.remove('hidden');
   } catch (error) {
@@ -58,38 +58,25 @@ document.getElementById('trackButton').addEventListener('click', async () => {
   }
 });
 
-// Looks in custom_urls first, then main_urls
+// Look up the URL record in main_urls by alias
 async function findUrlRecord(alias) {
-  // Check custom_urls table
-  let { data: customData, error: customError } = await supabase
-    .from('custom_urls')
-    .select('id')
-    .eq('custom_alias', alias)
-    .single();
-
-  if (!customError && customData) {
-    return { recordId: customData.id, urlType: 'custom' };
-  }
-
-  // Otherwise check main_urls table
-  const { data: mainData, error: mainError } = await supabase
+  const { data, error } = await supabase
     .from('main_urls')
     .select('id')
     .eq('short_url', alias)
     .single();
 
-  return mainData ? { recordId: mainData.id, urlType: 'main' } : { recordId: null };
+  return data ? { recordId: data.id } : { recordId: null };
 }
 
-// Fetch click-events from Supabase
-async function fetchClickData(recordId, urlType) {
+// Fetch click-events from click_events table by URL id
+async function fetchClickData(recordId) {
   const { data, error } = await supabase
     .from('click_events')
     .select('*')
-    .eq('url_id', recordId)
-    .eq('url_type', urlType);  // Ensure your click_events rows have a url_type column matching the table type
+    .eq('url_id', recordId);
 
-  if (error) throw new Error('Failed to fetch data');
+  if (error) throw new Error('Failed to fetch click data');
   return data;
 }
 
@@ -102,7 +89,7 @@ function updateSummary(clicksData) {
   const uniqueIPs = new Set(clicksData.map(click => click.ip_address));
   document.getElementById('uniqueClickCount').textContent = uniqueIPs.size;
 
-  // Average interval
+  // Average interval between clicks
   document.getElementById('avgInterval').textContent = calculateAverageInterval(clicksData);
 }
 
@@ -120,7 +107,7 @@ function calculateAverageInterval(clicksData) {
   return formatInterval(avgMs);
 }
 
-// Convert milliseconds into a friendly string (e.g., "X minutes Y seconds")
+// Format milliseconds into a friendly string
 function formatInterval(ms) {
   const seconds = Math.floor(ms / 1000);
   if (seconds < 60) return `${seconds} second${seconds !== 1 ? 's' : ''}`;
@@ -131,15 +118,15 @@ function formatInterval(ms) {
 
 // Render charts using Chart.js
 async function renderCharts(clicksData) {
-  // Destroy existing charts if present
+  // Destroy existing charts if they exist
   if (locationChart) locationChart.destroy();
   if (deviceChart) deviceChart.destroy();
   if (trendChart) trendChart.destroy();
 
-  // Tally data by location, device, and date
+  // Aggregate click data
   const aggregated = clicksData.reduce((acc, click) => {
     const loc = click.location || 'Unknown';
-    const dev = click.device_type || 'Unknown';
+    const dev = click.device || 'Unknown';
     const dateStr = new Date(click.created_at).toLocaleDateString();
 
     acc.locations[loc] = (acc.locations[loc] || 0) + 1;
@@ -148,10 +135,10 @@ async function renderCharts(clicksData) {
     return acc;
   }, { locations: {}, devices: {}, dates: {} });
 
-  // Allow container to size
+  // Allow time for container resizing
   await new Promise(resolve => setTimeout(resolve, 300));
 
-  // 1) Render Location Chart (Doughnut)
+  // 1) Location Chart (Doughnut)
   locationChart = createChart('locationChart', 'doughnut', {
     labels: Object.keys(aggregated.locations),
     data: Object.values(aggregated.locations),
@@ -159,7 +146,7 @@ async function renderCharts(clicksData) {
     title: 'Clicks by Location'
   });
 
-  // 2) Render Device Chart (Bar)
+  // 2) Device Chart (Bar)
   deviceChart = createChart('deviceChart', 'bar', {
     labels: Object.keys(aggregated.devices),
     data: Object.values(aggregated.devices),
@@ -167,7 +154,7 @@ async function renderCharts(clicksData) {
     title: 'Clicks by Device'
   });
 
-  // 3) Render Trend Chart (Line)
+  // 3) Trend Chart (Line)
   trendChart = createChart('trendChart', 'line', {
     labels: Object.keys(aggregated.dates),
     data: Object.values(aggregated.dates),
@@ -176,7 +163,7 @@ async function renderCharts(clicksData) {
     title: 'Clicks Over Time'
   });
 
-  // Trigger resize event for proper chart reflow
+  // Trigger a resize event to force charts to reflow
   setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
 }
 
@@ -207,10 +194,3 @@ function createChart(canvasId, chartType, { labels, data, backgroundColor, borde
     }
   });
 }
-
-// Expose a debug endpoint (optional)
-document.getElementById('debugButton')?.addEventListener('click', async () => {
-  const response = await fetch('/debug/list-dist');
-  const data = await response.json();
-  console.log('Dist folder contents:', data);
-});
