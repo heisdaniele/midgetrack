@@ -82,15 +82,25 @@ async function fetchClickData(recordId) {
 
 // Update summary information on the page
 function updateSummary(clicksData) {
+  // Helper function to safely update element text content
+  const safeSetText = (id, value) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.textContent = value;
+    } else {
+      console.warn(`Element with id '${id}' not found`);
+    }
+  };
+
   // Total clicks
-  document.getElementById('clickCount').textContent = clicksData.length;
+  safeSetText('clickCount', clicksData.length);
 
   // Unique clicks (by IP)
   const uniqueIPs = new Set(clicksData.map(click => click.ip_address));
-  document.getElementById('uniqueClickCount').textContent = uniqueIPs.size;
+  safeSetText('uniqueClickCount', uniqueIPs.size);
 
   // Average interval between clicks
-  document.getElementById('avgInterval').textContent = calculateAverageInterval(clicksData);
+  safeSetText('avgInterval', calculateAverageInterval(clicksData));
 }
 
 // Compute average interval between clicks

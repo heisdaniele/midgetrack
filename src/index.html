@@ -108,8 +108,20 @@
       
       <!-- Summary Section -->
       <div id="summary" class="mt-6 p-4 bg-green-100 text-green-800 rounded-lg hidden">
-        <p class="text-xl font-bold">Total Clicks: <span id="clickCount"></span></p>
-        <p id="avgInterval" class="mt-2 text-sm"></p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="text-center">
+            <p class="text-sm font-semibold">Total Clicks</p>
+            <p class="text-2xl font-bold"><span id="clickCount">0</span></p>
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold">Unique Visitors</p>
+            <p class="text-2xl font-bold"><span id="uniqueClickCount">0</span></p>
+          </div>
+          <div class="text-center">
+            <p class="text-sm font-semibold">Average Interval</p>
+            <p class="text-2xl font-bold"><span id="avgInterval">-</span></p>
+          </div>
+        </div>
       </div>
       
       <!-- Charts Section -->
